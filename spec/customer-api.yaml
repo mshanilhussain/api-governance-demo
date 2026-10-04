@@ -1,0 +1,22 @@
+openapi: 3.0.3
+
+info:
+  title: Customer API
+  version: 1.0.0
+
+servers:
+  - url: https://api.example.com/v1
+
+paths:
+  /getCustomer/{id}:
+    get:
+      summary: Get customer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Customer found
