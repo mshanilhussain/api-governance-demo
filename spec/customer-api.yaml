@@ -3,14 +3,19 @@ openapi: 3.0.3
 info:
   title: Customer API
   version: 1.0.0
+  description: API for retrieving customer information.
 
 servers:
   - url: https://api.example.com/v1
 
+security:
+  - bearerAuth: []
+
 paths:
-  /getCustomer/{id}:
+  /customers/{id}:
     get:
       summary: Get customer
+      description: Retrieves customer details using the customer ID.
       parameters:
         - name: id
           in: path
@@ -19,4 +24,18 @@ paths:
             type: integer
       responses:
         '200':
-          description: Customer found
+          description: Customer retrieved successfully
+        '400':
+          description: Invalid request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Customer not found
+        '500':
+          description: Internal server error
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
