@@ -15,12 +15,63 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed API
+        id: api
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE_SHA="${{ github.event.before }}"
+          fi
+
+          API_FILE=$(git diff --name-only "$BASE_SHA" "${{ github.sha }}" \
+            | grep '^specs/.*/.*\.yaml$' \
+            | head -n 1)
+
+          if [ -z "$API_FILE" ]; then
+            echo "No API specification changed."
+            exit 1
+          fi
+
+          API_NAME=$(echo "$API_FILE" | cut -d'/' -f2)
+
+          echo "API file: $API_FILE"
+          echo "API name: $API_NAME"
+
+          echo "api_file=$API_FILE" >> "$GITHUB_OUTPUT"
+          echo "api_name=$API_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Get Postman Spec ID
+        id: mapping
+        run: |
+          SPEC_ID=$(awk -v api="${{ steps.api.outputs.api_name }}" '
+            $1 == api ":" {
+              found=1
+              next
+            }
+            found && /spec_id:/ {
+              gsub(/"/, "", $2)
+              print $2
+              exit
+            }
+          ' .postman/api-mappings.yaml)
+
+          if [ -z "$SPEC_ID" ]; then
+            echo "No Postman Spec ID found for API: ${{ steps.api.outputs.api_name }}"
+            exit 1
+          fi
+
+          echo "Postman Spec ID: $SPEC_ID"
+          echo "spec_id=$SPEC_ID" >> "$GITHUB_OUTPUT"
 
       - name: Run Postman OWASP Governance
         uses: postmanlabs/postman-cli-action@v1
         with:
           command: >-
-            spec lint specs/customer-api/customer-api.yaml
+            spec lint ${{ steps.api.outputs.api_file }}
             --workspace-id 8a87b18c-244c-44fb-abe1-c48362546372
             --fail-severity ERROR
           api-key: ${{ secrets.POSTMAN_API_KEY }}
@@ -30,15 +81,15 @@ jobs:
           POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
         run: |
           postman spec file update \
-            4565be34-c889-4b9e-9059-8905b9cd0180 \
+            "${{ steps.mapping.outputs.spec_id }}" \
             index.yaml \
-            < specs/customer-api/customer-api.yaml
+            < "${{ steps.api.outputs.api_file }}"
 
       - name: Generate Postman Cloud Collection
         env:
           POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
         run: |
           postman spec generate collection \
-            4565be34-c889-4b9e-9059-8905b9cd0180 \
-            --name "Customer API" \
+            "${{ steps.mapping.outputs.spec_id }}" \
+            --name "${{ steps.api.outputs.api_name }}" \
             --workspace 8a87b18c-244c-44fb-abe1-c48362546372
