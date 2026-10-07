@@ -1,0 +1,26 @@
+name: API Governance
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  governance:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Postman OWASP Governance
+        uses: postmanlabs/postman-cli-action@v1
+        with:
+          command: >
+            spec lint spec/customer-api.yaml
+            --workspace-id 8a87b18c-244c-44fb-abe1-c48362546372
+            --fail-severity ERROR
+          api-key: ${{ secrets.POSTMAN_API_KEY }}
