@@ -6,8 +6,10 @@ info:
   description: API for retrieving customer information.
 
 servers:
-  - url: http://api.example.com/v1
+  - url: https://api.example.com/v1
 
+security:
+  - bearerAuth: []
 
 paths:
   /customers/{id}:
