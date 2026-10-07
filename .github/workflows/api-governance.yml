@@ -33,7 +33,8 @@ jobs:
 
           if [ -z "$API_FILE" ]; then
             echo "No API specification changed."
-            exit 1
+            echo "api_changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
           API_NAME=$(echo "$API_FILE" | cut -d'/' -f2)
@@ -41,10 +42,12 @@ jobs:
           echo "API file: $API_FILE"
           echo "API name: $API_NAME"
 
+          echo "api_changed=true" >> "$GITHUB_OUTPUT"
           echo "api_file=$API_FILE" >> "$GITHUB_OUTPUT"
           echo "api_name=$API_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Get Postman Spec ID
+        if: steps.api.outputs.api_changed == 'true'
         id: mapping
         run: |
           SPEC_ID=$(awk -v api="${{ steps.api.outputs.api_name }}" '
@@ -68,6 +71,7 @@ jobs:
           echo "spec_id=$SPEC_ID" >> "$GITHUB_OUTPUT"
 
       - name: Run Postman OWASP Governance
+        if: steps.api.outputs.api_changed == 'true'
         uses: postmanlabs/postman-cli-action@v1
         with:
           command: >-
@@ -77,6 +81,7 @@ jobs:
           api-key: ${{ secrets.POSTMAN_API_KEY }}
 
       - name: Update Postman Cloud Specification
+        if: steps.api.outputs.api_changed == 'true'
         env:
           POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
         run: |
@@ -86,6 +91,7 @@ jobs:
             < "${{ steps.api.outputs.api_file }}"
 
       - name: Generate Postman Cloud Collection
+        if: steps.api.outputs.api_changed == 'true'
         env:
           POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
         run: |
