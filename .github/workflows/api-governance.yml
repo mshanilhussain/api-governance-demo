@@ -30,6 +30,6 @@ jobs:
         with:
           command: >-
             spec generate collection specs/customer-api/customer-api.yaml
-            --name "Customer API"
+            --name "Customer API" --force
             --workspace 8a87b18c-244c-44fb-abe1-c48362546372
           api-key: ${{ secrets.POSTMAN_API_KEY }}
