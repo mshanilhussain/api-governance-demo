@@ -24,3 +24,11 @@ jobs:
             --workspace-id 8a87b18c-244c-44fb-abe1-c48362546372
             --fail-severity ERROR
           api-key: ${{ secrets.POSTMAN_API_KEY }}
+
+      - name: Generate Postman Collection
+        uses: postmanlabs/postman-cli-action@v1
+        with:
+          command: >
+            spec generate collection spec/customer-api.yaml
+            --name "Customer API"
+          api-key: ${{ secrets.POSTMAN_API_KEY }}
