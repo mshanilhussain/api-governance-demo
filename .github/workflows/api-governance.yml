@@ -15,46 +15,20 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Find changed API specs
-        shell: bash
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            git diff --name-only \
-              "${{ github.event.pull_request.base.sha }}" \
-              "${{ github.event.pull_request.head.sha }}" \
-              | grep -E '^specs/.+\.(yaml|yml)$' > changed_specs.txt || true
-          else
-            git diff --name-only \
-              "${{ github.event.before }}" \
-              "${{ github.sha }}" \
-              | grep -E '^specs/.+\.(yaml|yml)$' > changed_specs.txt || true
-          fi
-
-          echo "Changed API specs:"
-          cat changed_specs.txt || true
 
       - name: Run Postman OWASP Governance
         uses: postmanlabs/postman-cli-action@v1
         with:
-          command: >
+          command: >-
             spec lint specs/customer-api/customer-api.yaml
             --workspace-id 8a87b18c-244c-44fb-abe1-c48362546372
             --fail-severity ERROR
           api-key: ${{ secrets.POSTMAN_API_KEY }}
 
-       - name: Check Postman CLI version
-         uses: postmanlabs/postman-cli-action@v1
-         with:
-          command: --version
-          api-key: ${{ secrets.POSTMAN_API_KEY }}
-
       - name: Generate Postman Collection
         uses: postmanlabs/postman-cli-action@v1
         with:
-          command: >
+          command: >-
             spec generate collection specs/customer-api/customer-api.yaml
             --name "Customer API"
             --workspace 8a87b18c-244c-44fb-abe1-c48362546372
