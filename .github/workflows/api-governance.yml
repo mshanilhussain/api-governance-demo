@@ -45,6 +45,12 @@ jobs:
             --fail-severity ERROR
           api-key: ${{ secrets.POSTMAN_API_KEY }}
 
+       - name: Check Postman CLI version
+         uses: postmanlabs/postman-cli-action@v1
+         with:
+          command: --version
+          api-key: ${{ secrets.POSTMAN_API_KEY }}
+
       - name: Generate Postman Collection
         uses: postmanlabs/postman-cli-action@v1
         with:
