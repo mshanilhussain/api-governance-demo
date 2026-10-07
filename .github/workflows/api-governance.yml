@@ -25,11 +25,20 @@ jobs:
             --fail-severity ERROR
           api-key: ${{ secrets.POSTMAN_API_KEY }}
 
-      - name: Generate Postman Collection
-        uses: postmanlabs/postman-cli-action@v1
-        with:
-          command: >-
-            spec generate collection specs/customer-api/customer-api.yaml
-            --name "Customer API" --force
+      - name: Update Postman Cloud Specification
+        env:
+          POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
+        run: |
+          postman spec file update \
+            4565be34-c889-4b9e-9059-8905b9cd0180 \
+            index.yaml \
+            < specs/customer-api/customer-api.yaml
+
+      - name: Generate Postman Cloud Collection
+        env:
+          POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
+        run: |
+          postman spec generate collection \
+            4565be34-c889-4b9e-9059-8905b9cd0180 \
+            --name "Customer API" \
             --workspace 8a87b18c-244c-44fb-abe1-c48362546372
-          api-key: ${{ secrets.POSTMAN_API_KEY }}
