@@ -6,7 +6,7 @@ info:
   description: API for retrieving customer information and customer details.
 
 servers:
-  - url: https://api.example.com/v1
+  - url: https://api.example.com/v1/shanil
 
 security:
   - bearerAuth: []
