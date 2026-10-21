@@ -3,10 +3,10 @@ openapi: 3.1.0
 info:
   title: Customer API
   version: 1.0.0
-  description: API for retrieving customer information and customer details.
+  description: Customer API - governance validation demo
 
 servers:
-  - url: http://api.example.com/v1/shanil
+  - url: https://api.example.com/v1/shanil
 
 paths:
   /customers/{id}:
@@ -39,3 +39,5 @@ components:
     bearerAuth:
       type: http
       scheme: bearer
+security:
+  - bearerAuth: []
