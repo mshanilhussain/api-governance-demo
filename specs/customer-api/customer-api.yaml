@@ -6,7 +6,7 @@ info:
   description: Customer API - governance validation demo
 
 servers:
-  - url: http://api.example.com/v1/shanil
+  - url: https://api.example.com/v1/shanil
 
 paths:
   /customers/{id}:
