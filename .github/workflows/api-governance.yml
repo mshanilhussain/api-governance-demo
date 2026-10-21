@@ -18,6 +18,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Validate API Governance Catalogue
+        run: python scripts/validate-governance.py
+
       - name: Detect changed API
         id: api
         run: |
