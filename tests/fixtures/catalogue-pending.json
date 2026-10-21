@@ -1,0 +1,17 @@
+{
+  "catalogue_version": "1.0",
+  "apis": {
+    "customer-api": {
+      "display_name": "Customer API",
+      "domain": "Customer Management",
+      "owner": "Customer API Team",
+      "specification": "specs/customer-api/customer-api.yaml",
+      "lifecycle": "Published",
+      "approval_status": "Pending",
+      "approved_by": "API Governance Team",
+      "approval_reference": "DEMO-APPROVAL-001",
+      "dependencies": [],
+      "postman_spec_id": "4565be34-c889-4b9e-9059-8905b9cd0180"
+    }
+  }
+}
