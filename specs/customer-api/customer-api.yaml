@@ -39,3 +39,5 @@ components:
     bearerAuth:
       type: http
       scheme: bearer
+security:
+  - bearerAuth: []
