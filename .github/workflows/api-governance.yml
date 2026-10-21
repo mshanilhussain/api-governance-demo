@@ -81,7 +81,7 @@ jobs:
           api-key: ${{ secrets.POSTMAN_API_KEY }}
 
       - name: Update Postman Cloud Specification
-        if: steps.api.outputs.api_changed == 'true'
+        if: github.event_name == 'push' && steps.api.outputs.api_changed == 'true'
         env:
           POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
         run: |
@@ -91,7 +91,7 @@ jobs:
             < "${{ steps.api.outputs.api_file }}"
 
       - name: Generate Postman Cloud Collection
-        if: steps.api.outputs.api_changed == 'true'
+        if: github.event_name == 'push' && steps.api.outputs.api_changed == 'true'
         env:
           POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
         run: |
