@@ -5,7 +5,11 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-CATALOGUE = ROOT / "governance" / "catalogue.json"
+CATALOGUE = (
+    Path(sys.argv[1]).resolve()
+    if len(sys.argv) > 1
+    else ROOT / "governance" / "catalogue.json"
+)
 
 VALID_LIFECYCLES = {
     "Draft", "Review", "Approved", "Published", "Deprecated"
