@@ -9,14 +9,12 @@ on:
       - main
 
 jobs:
-  governance:
+  validate:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Set up Node.js for Spectral
         uses: actions/setup-node@v4
@@ -42,10 +40,23 @@ jobs:
           done
 
       - name: Validate API Governance Catalogue
-        run: python scripts/validate-governance.py
+        run: |
+          python scripts/validate-governance.py
 
-      - name: Detect changed API
-        id: api
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.detect.outputs.matrix }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed APIs and resolve mappings
+        id: detect
+        shell: bash
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE_SHA="${{ github.event.pull_request.base.sha }}"
@@ -53,75 +64,65 @@ jobs:
             BASE_SHA="${{ github.event.before }}"
           fi
 
-          API_FILE=$(git diff --name-only "$BASE_SHA" "${{ github.sha }}" \
-            | grep '^specs/.*/.*\.yaml$' \
-            | head -n 1)
-
-          if [ -z "$API_FILE" ]; then
-            echo "No API specification changed."
-            echo "api_changed=false" >> "$GITHUB_OUTPUT"
-            exit 0
+          if [[ "$BASE_SHA" =~ ^0+$ ]]; then
+            BASE_SHA="$(git hash-object -t tree /dev/null)"
           fi
 
-          API_NAME=$(echo "$API_FILE" | cut -d'/' -f2)
+          MATRIX=$(python scripts/detect-changed-apis.py \
+            "$BASE_SHA" "${{ github.sha }}")
 
-          echo "API file: $API_FILE"
-          echo "API name: $API_NAME"
+          echo "Detected API matrix:"
+          echo "$MATRIX"
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
 
-          echo "api_changed=true" >> "$GITHUB_OUTPUT"
-          echo "api_file=$API_FILE" >> "$GITHUB_OUTPUT"
-          echo "api_name=$API_NAME" >> "$GITHUB_OUTPUT"
+  postman-governance:
+    needs:
+      - validate
+      - detect-changes
+    runs-on: ubuntu-latest
 
-      - name: Get Postman Spec ID
-        if: steps.api.outputs.api_changed == 'true'
-        id: mapping
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.detect-changes.outputs.matrix) }}
+
+    steps:
+      - name: Checkout repository
+        if: matrix.skip != true
+        uses: actions/checkout@v4
+
+      - name: Install Postman CLI
+        if: matrix.skip != true
+        shell: bash
         run: |
-          SPEC_ID=$(awk -v api="${{ steps.api.outputs.api_name }}" '
-            $1 == api ":" {
-              found=1
-              next
-            }
-            found && /spec_id:/ {
-              gsub(/"/, "", $2)
-              print $2
-              exit
-            }
-          ' .postman/api-mappings.yaml)
-
-          if [ -z "$SPEC_ID" ]; then
-            echo "No Postman Spec ID found for API: ${{ steps.api.outputs.api_name }}"
-            exit 1
-          fi
-
-          echo "Postman Spec ID: $SPEC_ID"
-          echo "spec_id=$SPEC_ID" >> "$GITHUB_OUTPUT"
+          curl --fail --location --silent --show-error \
+            https://dl-cli.pstmn.io/install/linux64.sh | sh
+          postman --version
 
       - name: Run Postman OWASP Governance
-        if: steps.api.outputs.api_changed == 'true'
-        uses: postmanlabs/postman-cli-action@v1
-        with:
-          command: >-
-            spec lint ${{ steps.api.outputs.api_file }}
-            --workspace-id 8a87b18c-244c-44fb-abe1-c48362546372
+        if: matrix.skip != true
+        env:
+          POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
+        run: |
+          postman spec lint "${{ matrix.api_file }}" \
+            --workspace-id 8a87b18c-244c-44fb-abe1-c48362546372 \
             --fail-severity ERROR
-          api-key: ${{ secrets.POSTMAN_API_KEY }}
 
       - name: Update Postman Cloud Specification
-        if: github.event_name == 'push' && steps.api.outputs.api_changed == 'true'
+        if: github.event_name == 'push' && matrix.skip != true
         env:
           POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
         run: |
           postman spec file update \
-            "${{ steps.mapping.outputs.spec_id }}" \
+            "${{ matrix.spec_id }}" \
             index.yaml \
-            < "${{ steps.api.outputs.api_file }}"
+            < "${{ matrix.api_file }}"
 
       - name: Generate Postman Cloud Collection
-        if: github.event_name == 'push' && steps.api.outputs.api_changed == 'true'
+        if: github.event_name == 'push' && matrix.skip != true
         env:
           POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
         run: |
           postman spec generate collection \
-            "${{ steps.mapping.outputs.spec_id }}" \
-            --name "${{ steps.api.outputs.api_name }}" \
+            "${{ matrix.spec_id }}" \
+            --name "${{ matrix.api_name }}" \
             --workspace 8a87b18c-244c-44fb-abe1-c48362546372
