@@ -1,0 +1,285 @@
+{
+  "info": {
+    "name": "OWASP Authenticated API Governance Demo",
+    "description": "Demonstrates expected bearer-authentication and authorization responses using Postman mock examples. Mock examples do not validate JWTs.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "mockBaseUrl",
+      "value": "https://REPLACE-WITH-YOUR-MOCK-ID.mock.pstmn.io"
+    },
+    {
+      "key": "expectedStatus",
+      "value": "401"
+    },
+    {
+      "key": "accessToken",
+      "value": "demo-user-token"
+    }
+  ],
+  "item": [
+    {
+      "name": "Customers - Get customer 1001",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}",
+            "type": "text"
+          },
+          {
+            "key": "x-mock-response-name",
+            "value": "Customer 401 Missing Token",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{mockBaseUrl}}/v1/customers/1001",
+          "host": [
+            "{{mockBaseUrl}}"
+          ],
+          "path": [
+            "v1",
+            "customers",
+            "1001"
+          ]
+        },
+        "description": "Use No Auth for the missing-token scenario. Change x-mock-response-name to select a saved response example."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const expected = Number(pm.collectionVariables.get('expectedStatus') || '401');",
+              "pm.test('Response matches the selected scenario status', function () {",
+              "  pm.response.to.have.status(expected);",
+              "});",
+              "if (expected === 401 || expected === 403) {",
+              "  pm.test('Error response contains a code', function () {",
+              "    pm.expect(pm.response.json()).to.have.property('code');",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "response": [
+        {
+          "name": "Customer 401 Missing Token",
+          "originalRequest": {
+            "method": "GET",
+            "url": "{{mockBaseUrl}}/v1/customers/1001"
+          },
+          "status": "Unauthorized",
+          "code": 401,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"code\": \"UNAUTHORIZED\",\n  \"message\": \"Missing bearer token.\"\n}"
+        },
+        {
+          "name": "Customer 401 Invalid Token",
+          "originalRequest": {
+            "method": "GET",
+            "url": "{{mockBaseUrl}}/v1/customers/1001"
+          },
+          "status": "Unauthorized",
+          "code": 401,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"code\": \"UNAUTHORIZED\",\n  \"message\": \"Invalid or expired bearer token.\"\n}"
+        },
+        {
+          "name": "Customer 200 Authorized",
+          "originalRequest": {
+            "method": "GET",
+            "url": "{{mockBaseUrl}}/v1/customers/1001"
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"id\": \"1001\",\n  \"name\": \"Demo Customer\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Customers - BOLA scenario for customer 2002",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}",
+            "type": "text"
+          },
+          {
+            "key": "x-mock-response-name",
+            "value": "Customer 403 BOLA",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{mockBaseUrl}}/v1/customers/2002",
+          "host": [
+            "{{mockBaseUrl}}"
+          ],
+          "path": [
+            "v1",
+            "customers",
+            "2002"
+          ]
+        },
+        "description": "Models a user attempting to access another customer's record. The mock does not check record ownership."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const expected = Number(pm.collectionVariables.get('expectedStatus') || '403');",
+              "pm.test('Response matches the selected authorization scenario', function () {",
+              "  pm.response.to.have.status(expected);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "response": [
+        {
+          "name": "Customer 403 BOLA",
+          "originalRequest": {
+            "method": "GET",
+            "url": "{{mockBaseUrl}}/v1/customers/2002"
+          },
+          "status": "Forbidden",
+          "code": 403,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"code\": \"FORBIDDEN\",\n  \"message\": \"Caller is not authorized to access this customer.\"\n}"
+        },
+        {
+          "name": "Customer 404 Not Disclosed",
+          "originalRequest": {
+            "method": "GET",
+            "url": "{{mockBaseUrl}}/v1/customers/2002"
+          },
+          "status": "Not Found",
+          "code": 404,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"code\": \"NOT_FOUND\",\n  \"message\": \"Customer not found or not disclosed.\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Admin - List customers",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}",
+            "type": "text"
+          },
+          {
+            "key": "x-mock-response-name",
+            "value": "Admin 403 Forbidden",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{mockBaseUrl}}/v1/admin/customers",
+          "host": [
+            "{{mockBaseUrl}}"
+          ],
+          "path": [
+            "v1",
+            "admin",
+            "customers"
+          ]
+        },
+        "description": "Models function-level authorization: a regular user should not access the admin endpoint."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const expected = Number(pm.collectionVariables.get('expectedStatus') || '403');",
+              "pm.test('Response matches the selected role scenario', function () {",
+              "  pm.response.to.have.status(expected);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "response": [
+        {
+          "name": "Admin 403 Forbidden",
+          "originalRequest": {
+            "method": "GET",
+            "url": "{{mockBaseUrl}}/v1/admin/customers"
+          },
+          "status": "Forbidden",
+          "code": 403,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"code\": \"FORBIDDEN\",\n  \"message\": \"Administrator permission required.\"\n}"
+        },
+        {
+          "name": "Admin 200 Authorized",
+          "originalRequest": {
+            "method": "GET",
+            "url": "{{mockBaseUrl}}/v1/admin/customers"
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"items\": [\n    { \"id\": \"1001\", \"name\": \"Demo Customer\" },\n    { \"id\": \"2002\", \"name\": \"Another Demo Customer\" }\n  ]\n}"
+        }
+      ]
+    }
+  ]
+}

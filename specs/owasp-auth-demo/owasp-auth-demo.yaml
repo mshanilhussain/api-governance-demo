@@ -1,0 +1,99 @@
+openapi: 3.0.3
+info:
+  title: Customer API - OWASP Authentication Demo
+  version: 1.0.0
+  description: >
+    OWASP-aligned API governance contract demonstrating bearer
+    authentication and authorization requirements.
+
+servers:
+  - url: https://api.example.com/v1
+
+tags:
+  - name: Customers
+  - name: Administration
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Customer:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          example: "1001"
+        name:
+          type: string
+          example: Demo Customer
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+
+paths:
+  /customers/{customerId}:
+    get:
+      tags:
+        - Customers
+      summary: Get a customer
+      operationId: getCustomer
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Customer returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        "401":
+          description: Missing or invalid authentication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Caller is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Customer not found or not disclosed
+
+  /admin/customers:
+    get:
+      tags:
+        - Administration
+      summary: List customers for administrators
+      operationId: listCustomersAdmin
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Customer list returned
+        "401":
+          description: Missing or invalid authentication
+        "403":
+          description: Administrator permission required
