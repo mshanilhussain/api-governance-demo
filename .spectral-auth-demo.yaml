@@ -1,0 +1,37 @@
+extends: []
+rules:
+  https-server:
+    description: API servers must use HTTPS.
+    message: "API governance requires HTTPS."
+    severity: error
+    given: $.servers[*].url
+    then:
+      function: pattern
+      functionOptions:
+        match: "^https://"
+
+  bearer-security-defined:
+    description: Define HTTP bearer authentication.
+    message: "Define components.securitySchemes.bearerAuth."
+    severity: error
+    given: $.components.securitySchemes.bearerAuth
+    then:
+      - field: type
+        function: enumeration
+        functionOptions:
+          values:
+            - http
+      - field: scheme
+        function: enumeration
+        functionOptions:
+          values:
+            - bearer
+
+  protected-operations:
+    description: Every API operation must declare security.
+    message: "Every operation must declare bearerAuth security."
+    severity: error
+    given: $.paths[*][get,put,post,delete,patch,options,head,trace]
+    then:
+      field: security
+      function: truthy

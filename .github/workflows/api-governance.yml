@@ -18,6 +18,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up Node.js for Spectral
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Lint OWASP authentication demo specification
+        run: |
+          npx --yes @stoplight/spectral-cli lint \
+            --ruleset .spectral-auth-demo.yaml \
+            specs/owasp-auth-demo/owasp-auth-demo.yaml
+
       - name: Validate API Governance Catalogue
         run: python scripts/validate-governance.py
 
