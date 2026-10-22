@@ -23,11 +23,23 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Lint OWASP authentication demo specification
+      - name: Lint OpenAPI specifications
+        shell: bash
         run: |
-          npx --yes @stoplight/spectral-cli lint \
-            --ruleset .spectral-auth-demo.yaml \
-            specs/owasp-auth-demo/owasp-auth-demo.yaml
+          mapfile -t SPECS < <(
+            find specs -type f \( -name '*.yaml' -o -name '*.yml' \) | sort
+          )
+
+          if [ "${#SPECS[@]}" -eq 0 ]; then
+            echo "No YAML specifications found."
+            exit 0
+          fi
+
+          for spec in "${SPECS[@]}"; do
+            echo "Linting: $spec"
+            npx --yes @stoplight/spectral-cli lint \
+              --ruleset .spectral-auth-demo.yaml "$spec"
+          done
 
       - name: Validate API Governance Catalogue
         run: python scripts/validate-governance.py
