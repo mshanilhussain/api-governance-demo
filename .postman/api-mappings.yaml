@@ -3,3 +3,5 @@ apis:
     spec_id: 4565be34-c889-4b9e-9059-8905b9cd0180
   owasp-auth-demo:
     spec_id: 4539d2d0-54c9-413e-adf5-1cd20d536f90
+  warehouse-api:
+    spec_id: 3c9099d0-d3c9-44dd-9b8f-f6f04956688c
