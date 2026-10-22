@@ -12,6 +12,30 @@
       "approval_reference": "DEMO-APPROVAL-001",
       "dependencies": [],
       "postman_spec_id": "4565be34-c889-4b9e-9059-8905b9cd0180"
+    },
+    "inventory-api": {
+      "display_name": "Inventory API",
+      "domain": "Inventory Management",
+      "owner": "Inventory API Team",
+      "specification": "specs/inventory-api/inventory-api.yaml",
+      "lifecycle": "Draft",
+      "approval_status": "Pending",
+      "approved_by": "",
+      "approval_reference": "",
+      "dependencies": [],
+      "postman_spec_id": ""
+    },
+    "warehouse-api": {
+      "display_name": "Warehouse API",
+      "domain": "Warehouse Management",
+      "owner": "Warehouse API Team",
+      "specification": "specs/warehouse-api/warehouse-api.yaml",
+      "lifecycle": "Draft",
+      "approval_status": "Pending",
+      "approved_by": "",
+      "approval_reference": "",
+      "dependencies": [],
+      "postman_spec_id": ""
     }
   }
 }
