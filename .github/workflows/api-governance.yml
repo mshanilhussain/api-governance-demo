@@ -5,48 +5,67 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "specs/**/*.yaml"
+      - "specs/**/*.yml"
+      - "rulesets/**"
+      - "scripts/**"
+      - ".postman/**"
+      - ".github/workflows/api-governance.yml"
   pull_request:
     branches:
       - main
+    paths:
+      - "specs/**/*.yaml"
+      - "specs/**/*.yml"
+      - "rulesets/**"
+      - "scripts/**"
+      - ".postman/**"
+      - ".github/workflows/api-governance.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   validate:
+    name: Validate API specifications
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js for Spectral
-        uses: actions/setup-node@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          node-version: "20"
+          python-version: "3.x"
 
-      - name: Lint OpenAPI specifications
-        shell: bash
+      - name: Install Spectral
         run: |
-          mapfile -t SPECS < <(
-            find specs -type f \( -name '*.yaml' -o -name '*.yml' \) | sort
-          )
+          npm install --global @stoplight/spectral-cli
 
-          if [ "${#SPECS[@]}" -eq 0 ]; then
-            echo "No YAML specifications found."
-            exit 0
-          fi
-
-          for spec in "${SPECS[@]}"; do
-            echo "Linting: $spec"
-            npx --yes @stoplight/spectral-cli lint \
-              --ruleset .spectral-auth-demo.yaml "$spec"
+      - name: Validate OpenAPI specifications
+        run: |
+          set -e
+          for api_file in specs/*/*.yaml specs/*/*.yml; do
+            if [ -f "$api_file" ]; then
+              echo "Validating $api_file"
+              spectral lint "$api_file" \
+                --ruleset rulesets/.spectral.yaml
+            fi
           done
 
-      - name: Validate API Governance Catalogue
-        run: python scripts/validate-governance.py
+      - name: Validate governance configuration
+        run: |
+          python scripts/validate-governance.py
 
   detect-changes:
+    name: Detect changed APIs
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.detect.outputs.matrix }}
+      has_changes: ${{ steps.detect.outputs.has_changes }}
 
     steps:
       - name: Checkout repository
@@ -54,146 +73,155 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Detect changed APIs and resolve mappings
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Detect changed APIs
         id: detect
-        shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE_SHA="${{ github.event.pull_request.base.sha }}"
-          else
-            BASE_SHA="${{ github.event.before }}"
-          fi
-
-          if [[ "$BASE_SHA" =~ ^0+$ ]]; then
-            BASE_SHA="$(git hash-object -t tree /dev/null)"
-          fi
-
-          MATRIX=$(python scripts/detect-changed-apis.py \
-            "$BASE_SHA" "${{ github.sha }}")
-
-          echo "Detected API matrix:"
-          echo "$MATRIX"
-          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+          python scripts/detect-changed-apis.py
 
   postman-governance:
+    name: Postman governance
+    runs-on: ubuntu-latest
     needs:
       - validate
       - detect-changes
-    runs-on: ubuntu-latest
+
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' &&
+       needs.detect-changes.outputs.has_changes == 'true')
 
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.detect-changes.outputs.matrix) }}
+      matrix:
+        include: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
 
     steps:
       - name: Checkout repository
-        if: matrix.skip != true
         uses: actions/checkout@v4
 
-      - name: Install Python
-        if: matrix.skip != true
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.x"
 
       - name: Install Postman CLI
-        if: matrix.skip != true
-        shell: bash
         run: |
-          curl --fail --location --silent --show-error \
-            https://dl-cli.pstmn.io/install/linux64.sh | sh
-          postman --version
+          set -e
+          curl -o- "https://dl-cli.pstmn.io/install/linux64.sh" | sh
 
-      - name: Run Postman specification governance
-        if: matrix.skip != true
+      - name: Lint OpenAPI specification with Postman
         env:
           POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
         run: |
-          postman spec lint "${{ matrix.api_file }}" \
-            --workspace-id 8a87b18c-244c-44fb-abe1-c48362546372 \
-            --fail-severity ERROR
+          set -e
+          postman spec lint "${{ matrix.api_file }}"
 
-      # Discover the existing collection BEFORE updating the specification.
-      # This lets us use its current synchronization state to identify it.
       - name: Discover existing generated collection
-        id: discover
-        if: github.event_name == 'push' && matrix.skip != true
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        id: existing_collection
         env:
           POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
-        shell: bash
         run: |
-          COLLECTION_ID="$(
-            python scripts/find-postman-collection.py \
-              "${{ matrix.spec_id }}" \
-              "${{ matrix.api_name }}"
-          )"
+          set -e
+
+          COLLECTION_ID="$(python scripts/find-postman-collection.py \
+            "${{ matrix.spec_id }}" \
+            "${{ matrix.api_name }}")"
 
           echo "collection_id=$COLLECTION_ID" >> "$GITHUB_OUTPUT"
 
           if [ -n "$COLLECTION_ID" ]; then
-            echo "Existing collection discovered: $COLLECTION_ID"
+            echo "Existing collection found: $COLLECTION_ID"
           else
-            echo "No generated collection exists yet. It will be created once."
+            echo "No existing collection found for ${{ matrix.api_name }}."
           fi
 
-      # Only create a collection when the specification has none.
-      - name: Generate initial Postman collection
-        if: github.event_name == 'push' && matrix.skip != true && steps.discover.outputs.collection_id == ''
+      - name: Update Postman Cloud Specification
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
         run: |
-          postman spec generate collection \
+          set -e
+          postman spec file update \
             "${{ matrix.spec_id }}" \
-            --name "${{ matrix.api_name }}" \
-            --workspace 8a87b18c-244c-44fb-abe1-c48362546372
+            index.yaml \
+            < "${{ matrix.api_file }}"
 
-      # Resolve the ID of the newly created collection.
-      - name: Discover newly generated collection
-        id: discover-created
-        if: github.event_name == 'push' && matrix.skip != true && steps.discover.outputs.collection_id == ''
+      - name: Generate initial Postman collection
+        if: >-
+          github.event_name == 'push' &&
+          github.ref == 'refs/heads/main' &&
+          steps.existing_collection.outputs.collection_id == ''
         env:
           POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
-        shell: bash
         run: |
-          COLLECTION_ID="$(
-            python scripts/find-postman-collection.py \
+          set -e
+          echo "Generating initial collection for ${{ matrix.api_name }}"
+          postman spec generate collection "${{ matrix.spec_id }}"
+
+      - name: Discover newly generated collection
+        if: >-
+          github.event_name == 'push' &&
+          github.ref == 'refs/heads/main' &&
+          steps.existing_collection.outputs.collection_id == ''
+        id: new_collection
+        env:
+          POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
+        run: |
+          set -e
+
+          COLLECTION_ID=""
+
+          for attempt in 1 2 3 4 5 6; do
+            echo "Collection discovery attempt $attempt of 6"
+
+            COLLECTION_ID="$(python scripts/find-postman-collection.py \
               "${{ matrix.spec_id }}" \
-              "${{ matrix.api_name }}"
-          )"
+              "${{ matrix.api_name }}")"
+
+            if [ -n "$COLLECTION_ID" ]; then
+              break
+            fi
+
+            if [ "$attempt" -lt 6 ]; then
+              echo "Collection not visible yet. Waiting 10 seconds..."
+              sleep 10
+            fi
+          done
 
           if [ -z "$COLLECTION_ID" ]; then
-            echo "ERROR: Collection generation completed, but no matching collection was found."
+            echo "::error::Unable to discover the generated collection for ${{ matrix.api_name }} after 6 attempts."
             exit 1
           fi
 
           echo "collection_id=$COLLECTION_ID" >> "$GITHUB_OUTPUT"
           echo "New collection discovered: $COLLECTION_ID"
 
-      - name: Update Postman Cloud Specification
-        if: github.event_name == 'push' && matrix.skip != true
-        env:
-          POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
-        run: |
-          postman spec file update \
-            "${{ matrix.spec_id }}" \
-            index.yaml \
-            < "${{ matrix.api_file }}"
-
-      # Sync the existing collection rather than generating another one.
       - name: Synchronize Postman collection with specification
-        if: github.event_name == 'push' && matrix.skip != true
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
-          COLLECTION_ID: ${{ steps.discover.outputs.collection_id || steps.discover-created.outputs.collection_id }}
         run: |
+          set -e
+
+          COLLECTION_ID="${{ steps.existing_collection.outputs.collection_id }}"
+
           if [ -z "$COLLECTION_ID" ]; then
-            echo "ERROR: No Postman collection ID was resolved."
+            COLLECTION_ID="${{ steps.new_collection.outputs.collection_id }}"
+          fi
+
+          if [ -z "$COLLECTION_ID" ]; then
+            echo "::error::No collection ID available for synchronization."
             exit 1
           fi
 
-          echo "Synchronizing collection: $COLLECTION_ID"
+          echo "Synchronizing ${{ matrix.api_name }} using collection $COLLECTION_ID"
+
           postman spec sync collection \
             "${{ matrix.spec_id }}" \
             --collection-id "$COLLECTION_ID"
-
-          echo "Postman collection synchronization command completed."

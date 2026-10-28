@@ -6,7 +6,6 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-
 API_BASE_URL = "https://api.postman.com"
 
 
@@ -16,13 +15,12 @@ def fail(message):
 
 
 def get_generated_collections(spec_id, api_key):
-    """Fetch every collection generated from the specified Postman spec."""
+    """Fetch all collections generated from a Postman specification."""
     collections = []
     cursor = None
 
     while True:
         params = {"limit": 100}
-
         if cursor:
             params["cursor"] = cursor
 
@@ -36,6 +34,7 @@ def get_generated_collections(spec_id, api_key):
             headers={
                 "X-Api-Key": api_key,
                 "Accept": "application/json",
+                "User-Agent": "api-governance-demo/1.0",
             },
         )
 
@@ -45,18 +44,22 @@ def get_generated_collections(spec_id, api_key):
         except HTTPError as exc:
             details = exc.read().decode("utf-8", errors="replace")
             fail(
-                f"Postman API returned HTTP {exc.code} while listing "
-                f"collections for specification {spec_id}. "
-                f"Response: {details}"
+                f"Postman API returned HTTP {exc.code}: {details}"
             )
-        except URLError as exc:
-            fail(f"Could not connect to the Postman API: {exc.reason}")
-        except TimeoutError:
-            fail("The Postman API request timed out.")
+        except (URLError, TimeoutError) as exc:
+            fail(f"Could not retrieve Postman collections: {exc}")
         except json.JSONDecodeError:
-            fail("The Postman API returned an invalid JSON response.")
+            fail("Postman returned an invalid JSON response.")
 
-        collections.extend(payload.get("collections", []))
+        page_collections = payload.get("collections")
+        if not isinstance(page_collections, list):
+            fail(
+                "Postman API response did not contain a valid "
+                "'collections' list. Cannot safely determine whether "
+                "a collection exists."
+            )
+
+        collections.extend(page_collections)
         cursor = payload.get("meta", {}).get("nextCursor")
 
         if not cursor:
@@ -66,80 +69,52 @@ def get_generated_collections(spec_id, api_key):
 
 
 def select_collection(collections, api_name, spec_id):
-    """
-    Select a collection only when the result is unambiguous.
-
-    Prefer a single in-sync collection when duplicates exist.
-    If there is only one name-matched collection, use it even if
-    it is currently out of sync.
-    """
-    if not collections:
-        # An empty result means this spec has no generated collections yet.
-        return ""
-
+    """Select a collection only when the result is unambiguous."""
     matching = [
-        collection
-        for collection in collections
-        if collection.get("name") == api_name
+        item
+        for item in collections
+        if item.get("name") == api_name
     ]
 
     if not matching:
-        available = ", ".join(
-            f"{item.get('name', '<unnamed>')} "
-            f"(ID: {item.get('id', '<missing>')}, "
-            f"state: {item.get('state', '<unknown>')})"
-            for item in collections
-        )
+        if collections:
+            available = "\n".join(
+                f"  - {item.get('name', '<unnamed>')} "
+                f"(ID: {item.get('id', '<missing>')})"
+                for item in collections
+            )
+            fail(
+                f"No collection named '{api_name}' was found for "
+                f"specification {spec_id}. Collections returned:\n"
+                f"{available}"
+            )
 
-        fail(
-            f"No generated collection named '{api_name}' was found for "
-            f"specification {spec_id}. Existing generated collections: "
-            f"{available}. No collection was selected or created."
-        )
+        # Empty list: no generated collections were returned.
+        # The workflow may create the initial collection.
+        return ""
 
-    in_sync = [
-        collection
-        for collection in matching
-        if collection.get("state") == "in-sync"
-    ]
-
-    if len(in_sync) == 1:
-        selected = in_sync[0]
-    elif len(matching) == 1:
-        selected = matching[0]
-    else:
+    if len(matching) > 1:
         details = "\n".join(
-            f"  - Name: {item.get('name', '<unnamed>')}; "
-            f"ID: {item.get('id', '<missing>')}; "
+            f"  - ID: {item.get('id', '<missing>')}; "
             f"state: {item.get('state', '<unknown>')}; "
             f"updatedAt: {item.get('updatedAt', '<unknown>')}"
             for item in matching
         )
-
         fail(
-            f"Multiple collections named '{api_name}' are associated with "
-            f"specification {spec_id}, and there is no unique in-sync "
-            f"collection. To avoid updating the wrong collection, "
-            f"automatic synchronization has stopped.\n{details}\n"
-            f"Resolve the duplicate collections in Postman, then rerun "
-            f"the workflow."
+            f"Found {len(matching)} collections named '{api_name}' "
+            f"for specification {spec_id}. No collection was selected.\n"
+            f"{details}\n"
+            "Resolve the duplicates in Postman, then rerun the workflow."
         )
 
-    collection_id = selected.get("id")
-
+    collection_id = matching[0].get("id")
     if not collection_id:
-        fail(
-            f"The selected collection for '{api_name}' has no ID in "
-            f"the Postman API response."
-        )
+        fail("The matching collection has no ID in the API response.")
 
     print(
-        f"Selected collection '{api_name}' "
-        f"(ID: {collection_id}, state: "
-        f"{selected.get('state', 'unknown')}).",
+        f"Selected collection '{api_name}' (ID: {collection_id}).",
         file=sys.stderr,
     )
-
     return collection_id
 
 
@@ -154,15 +129,14 @@ def main():
     api_key = os.environ.get("POSTMAN_API_KEY")
 
     if not api_key:
-        fail(
-            "POSTMAN_API_KEY is not set. Add it as a GitHub Actions "
-            "repository secret."
-        )
+        fail("POSTMAN_API_KEY environment variable is not set.")
 
     collections = get_generated_collections(spec_id, api_key)
-    collection_id = select_collection(collections, api_name, spec_id)
-
-    # Print only the ID to stdout so GitHub Actions can capture it.
+    collection_id = select_collection(
+        collections,
+        api_name,
+        spec_id,
+    )
     print(collection_id)
 
 
