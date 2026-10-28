@@ -12,6 +12,8 @@ paths:
     get:
       summary: Retrieve governance demo status
       operationId: getGovernanceDemoStatus
+      security:
+        - bearerAuth: []
       description: Returns a sample status response for the API governance demonstration.
       responses:
         '200':
