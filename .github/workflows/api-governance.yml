@@ -1,4 +1,3 @@
-
 name: API Governance
 
 on:
@@ -8,9 +7,11 @@ on:
     paths:
       - "specs/**/*.yaml"
       - "specs/**/*.yml"
-      - "rulesets/**"
+      - "governance/**"
+      - "tests/**"
       - "scripts/**"
       - ".postman/**"
+      - ".spectral-auth-demo.yaml"
       - ".github/workflows/api-governance.yml"
   pull_request:
     branches:
@@ -18,9 +19,11 @@ on:
     paths:
       - "specs/**/*.yaml"
       - "specs/**/*.yml"
-      - "rulesets/**"
+      - "governance/**"
+      - "tests/**"
       - "scripts/**"
       - ".postman/**"
+      - ".spectral-auth-demo.yaml"
       - ".github/workflows/api-governance.yml"
   workflow_dispatch:
 
@@ -46,14 +49,24 @@ jobs:
           npm install --global @stoplight/spectral-cli
 
       - name: Validate OpenAPI specifications
+        shell: bash
         run: |
-          set -e
-          for api_file in specs/*/*.yaml specs/*/*.yml; do
-            if [ -f "$api_file" ]; then
-              echo "Validating $api_file"
-              spectral lint "$api_file" \
-                --ruleset rulesets/.spectral.yaml
-            fi
+          set -euo pipefail
+
+          mapfile -t SPECS < <(
+            find specs -type f \( -name '*.yaml' -o -name '*.yml' \) | sort
+          )
+
+          if [ "${#SPECS[@]}" -eq 0 ]; then
+            echo "No YAML specifications found."
+            exit 0
+          fi
+
+          for spec in "${SPECS[@]}"; do
+            echo "Linting: $spec"
+            spectral lint \
+              --ruleset .spectral-auth-demo.yaml \
+              "$spec"
           done
 
       - name: Validate governance configuration
@@ -78,10 +91,44 @@ jobs:
         with:
           python-version: "3.x"
 
-      - name: Detect changed APIs
+      - name: Detect changed APIs and resolve mappings
         id: detect
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
         run: |
-          python scripts/detect-changed-apis.py
+          set -euo pipefail
+
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            BASE="$PR_BASE_SHA"
+          elif [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            BASE="$HEAD_SHA"
+          else
+            BASE="$BEFORE_SHA"
+          fi
+
+          if [ -z "$BASE" ] || [[ "$BASE" =~ ^0+$ ]]; then
+            BASE="$(git hash-object -t tree /dev/null)"
+          fi
+
+          MATRIX="$(python scripts/detect-changed-apis.py "$BASE" "$HEAD_SHA")"
+
+          echo "Detected API matrix:"
+          echo "$MATRIX"
+
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+
+          HAS_CHANGES="$(python -c '
+          import json, sys
+          data = json.load(sys.stdin)
+          print(str(any(not item.get("skip", False) for item in data["include"])).lower())
+          ' <<< "$MATRIX")"
+
+          echo "has_changes=$HAS_CHANGES" >> "$GITHUB_OUTPUT"
+          echo "Changed API specifications detected: $HAS_CHANGES"
 
   postman-governance:
     name: Postman governance
@@ -91,14 +138,13 @@ jobs:
       - detect-changes
 
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' &&
-       needs.detect-changes.outputs.has_changes == 'true')
+      needs.detect-changes.outputs.has_changes == 'true' &&
+      (github.event_name == 'push' ||
+       github.event_name == 'pull_request')
 
     strategy:
       fail-fast: false
-      matrix:
-        include: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+      matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
 
     steps:
       - name: Checkout repository
@@ -111,14 +157,16 @@ jobs:
 
       - name: Install Postman CLI
         run: |
-          set -e
-          curl -o- "https://dl-cli.pstmn.io/install/linux64.sh" | sh
+          set -euo pipefail
+          curl --fail --location --silent --show-error \
+            "https://dl-cli.pstmn.io/install/linux64.sh" | sh
+          postman --version
 
       - name: Lint OpenAPI specification with Postman
         env:
           POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
         run: |
-          set -e
+          set -euo pipefail
           postman spec lint "${{ matrix.api_file }}"
 
       - name: Discover existing generated collection
@@ -127,7 +175,7 @@ jobs:
         env:
           POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
         run: |
-          set -e
+          set -euo pipefail
 
           COLLECTION_ID="$(python scripts/find-postman-collection.py \
             "${{ matrix.spec_id }}" \
@@ -146,7 +194,8 @@ jobs:
         env:
           POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
         run: |
-          set -e
+          set -euo pipefail
+
           postman spec file update \
             "${{ matrix.spec_id }}" \
             index.yaml \
@@ -160,9 +209,14 @@ jobs:
         env:
           POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
         run: |
-          set -e
+          set -euo pipefail
+
           echo "Generating initial collection for ${{ matrix.api_name }}"
-          postman spec generate collection "${{ matrix.spec_id }}"
+
+          postman spec generate collection \
+            "${{ matrix.spec_id }}" \
+            --name "${{ matrix.api_name }}" \
+            --workspace 8a87b18c-244c-44fb-abe1-c48362546372
 
       - name: Discover newly generated collection
         if: >-
@@ -173,7 +227,7 @@ jobs:
         env:
           POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
         run: |
-          set -e
+          set -euo pipefail
 
           COLLECTION_ID=""
 
@@ -207,7 +261,7 @@ jobs:
         env:
           POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
         run: |
-          set -e
+          set -euo pipefail
 
           COLLECTION_ID="${{ steps.existing_collection.outputs.collection_id }}"
 
