@@ -1,4 +1,3 @@
-
 name: API Governance
 
 on:
@@ -68,8 +67,9 @@ jobs:
         run: python scripts/validate-governance.py
 
   detect-changes:
-    name: Detect changed APIs
+    name: Detect changed APIs and missing collections
     runs-on: ubuntu-latest
+
     outputs:
       matrix: ${{ steps.changes.outputs.matrix }}
       has_changes: ${{ steps.changes.outputs.has_changes }}
@@ -85,8 +85,10 @@ jobs:
         with:
           python-version: "3.x"
 
-      - name: Detect changed API specifications
+      - name: Detect changed APIs and missing collections
         id: changes
+        env:
+          POSTMAN_API_KEY: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') && secrets.POSTMAN_API_KEY || '' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -101,14 +103,22 @@ jobs:
             BASE_SHA="$HEAD_SHA"
           fi
 
-          if [[ -z "$BASE_SHA" ||
-                "$BASE_SHA" =~ ^0+$ ]]; then
+          if [[ -z "$BASE_SHA" || "$BASE_SHA" =~ ^0+$ ]]; then
             echo "Unable to determine a valid base commit."
             exit 1
           fi
 
-          MATRIX="$(python scripts/detect-changed-apis.py \
-            "$BASE_SHA" "$HEAD_SHA")"
+          if [[ "$GITHUB_EVENT_NAME" == "push" &&
+                "$GITHUB_REF" == "refs/heads/main" ||
+                "$GITHUB_EVENT_NAME" == "workflow_dispatch" &&
+                "$GITHUB_REF" == "refs/heads/main" ]]; then
+
+            MATRIX="$(python scripts/detect-changed-apis.py \
+              "$BASE_SHA" "$HEAD_SHA" --reconcile-missing)"
+          else
+            MATRIX="$(python scripts/detect-changed-apis.py \
+              "$BASE_SHA" "$HEAD_SHA")"
+          fi
 
           echo "Detected API matrix: $MATRIX"
 
@@ -125,7 +135,7 @@ jobs:
           echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
           echo "has_changes=$HAS_CHANGES" >> "$GITHUB_OUTPUT"
 
-          echo "Has changed APIs: $HAS_CHANGES"
+          echo "Has APIs to process: $HAS_CHANGES"
 
   postman-governance:
     name: Postman governance
@@ -135,8 +145,13 @@ jobs:
 
     if: >-
       needs.detect-changes.outputs.has_changes == 'true' &&
-      (github.event_name == 'push' ||
-       github.event_name == 'pull_request')
+      (
+        (github.event_name == 'push' &&
+         github.ref == 'refs/heads/main') ||
+        github.event_name == 'pull_request' ||
+        (github.event_name == 'workflow_dispatch' &&
+         github.ref == 'refs/heads/main')
+      )
 
     runs-on: ubuntu-latest
 
@@ -165,14 +180,18 @@ jobs:
           set -euo pipefail
           postman spec lint "${{ matrix.spec_id }}"
 
-      # Postman Cloud changes are restricted to pushes to main.
-      # Pull requests run validation and linting only.
+      # Cloud modifications are restricted to pushes to main
+      # and manual reconciliation runs on main.
 
       - name: Discover existing generated collection
         id: existing_collection
         if: >-
-          github.event_name == 'push' &&
-          github.ref == 'refs/heads/main'
+          (
+            (github.event_name == 'push' &&
+             github.ref == 'refs/heads/main') ||
+            (github.event_name == 'workflow_dispatch' &&
+             github.ref == 'refs/heads/main')
+          )
         env:
           POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
         shell: bash
@@ -195,8 +214,13 @@ jobs:
 
       - name: Update Postman Cloud Specification
         if: >-
-          github.event_name == 'push' &&
-          github.ref == 'refs/heads/main'
+          matrix.changed == true &&
+          (
+            (github.event_name == 'push' &&
+             github.ref == 'refs/heads/main') ||
+            (github.event_name == 'workflow_dispatch' &&
+             github.ref == 'refs/heads/main')
+          )
         env:
           POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
         shell: bash
@@ -210,8 +234,12 @@ jobs:
 
       - name: Generate initial Postman collection
         if: >-
-          github.event_name == 'push' &&
-          github.ref == 'refs/heads/main' &&
+          (
+            (github.event_name == 'push' &&
+             github.ref == 'refs/heads/main') ||
+            (github.event_name == 'workflow_dispatch' &&
+             github.ref == 'refs/heads/main')
+          ) &&
           steps.existing_collection.outputs.collection_id == ''
         env:
           POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
@@ -229,8 +257,12 @@ jobs:
       - name: Discover newly generated collection
         id: new_collection
         if: >-
-          github.event_name == 'push' &&
-          github.ref == 'refs/heads/main' &&
+          (
+            (github.event_name == 'push' &&
+             github.ref == 'refs/heads/main') ||
+            (github.event_name == 'workflow_dispatch' &&
+             github.ref == 'refs/heads/main')
+          ) &&
           steps.existing_collection.outputs.collection_id == ''
         env:
           POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
@@ -268,8 +300,12 @@ jobs:
 
       - name: Synchronize Postman collection with specification
         if: >-
-          github.event_name == 'push' &&
-          github.ref == 'refs/heads/main'
+          (
+            (github.event_name == 'push' &&
+             github.ref == 'refs/heads/main') ||
+            (github.event_name == 'workflow_dispatch' &&
+             github.ref == 'refs/heads/main')
+          )
         env:
           POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
         shell: bash
