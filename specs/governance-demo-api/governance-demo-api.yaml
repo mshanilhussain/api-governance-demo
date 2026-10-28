@@ -1,0 +1,35 @@
+openapi: 3.1.0
+info:
+  title: Governance Demo API
+  version: 1.0.0
+  description: API used to demonstrate automated API governance and Postman collection generation.
+servers:
+  - url: https://api.example.com/v1
+security:
+  - bearerAuth: []
+paths:
+  /governance-demo:
+    get:
+      summary: Retrieve governance demo status
+      operationId: getGovernanceDemoStatus
+      description: Returns a sample status response for the API governance demonstration.
+      responses:
+        '200':
+          description: Demo status retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                properties:
+                  status:
+                    type: string
+                    example: operational
+        '401':
+          description: Unauthorized - missing or invalid bearer token.
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer

@@ -48,6 +48,18 @@
       "approval_reference": "",
       "dependencies": [],
       "postman_spec_id": "e69cc531-30ea-43d3-92e2-2dfad92dd2c9"
-   }
+   },
+   "governance-demo-api": {
+      "display_name": "Governance Demo API",
+      "domain": "API Governance",
+      "owner": "API Governance Demo Team",
+      "specification": "specs/governance-demo-api/governance-demo-api.yaml",
+      "lifecycle": "Draft",
+      "approval_status": "Pending",
+      "approved_by": "",
+      "approval_reference": "",
+      "dependencies": [],
+      "postman_spec_id": "632384e9-3c39-4053-8503-2d7bf752b570"
+    }
   }
 }

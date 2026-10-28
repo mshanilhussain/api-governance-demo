@@ -9,3 +9,5 @@ apis:
     spec_id: c16b6cc6-ba98-4061-ac97-b19fb93939f4
   payments-api:
     spec_id: e69cc531-30ea-43d3-92e2-2dfad92dd2c9
+  governance-demo-api:
+    spec_id: 632384e9-3c39-4053-8503-2d7bf752b570
