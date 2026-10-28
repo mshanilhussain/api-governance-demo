@@ -3,7 +3,7 @@ openapi: 3.1.0
 info:
   title: "Warehouse API"
   version: 1.0.0
-  description: "API for retrieving warehouse details."
+  description: "API for retrieving warehouse details. Managed through automated API governance."
 
 servers:
   - url: https://api.example.com/v1
