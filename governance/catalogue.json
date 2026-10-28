@@ -36,6 +36,18 @@
       "approval_reference": "",
       "dependencies": [],
       "postman_spec_id": ""
-    }
+    },
+   "payments-api": {
+      "display_name": "Payments API",
+      "domain": "Payment Processing",
+      "owner": "Payments API Team",
+      "specification": "specs/payments-api/payments-api.yaml",
+      "lifecycle": "Draft",
+      "approval_status": "Pending",
+      "approved_by": "",
+      "approval_reference": "",
+      "dependencies": [],
+      "postman_spec_id": "e69cc531-30ea-43d3-92e2-2dfad92dd2c9"
+   }
   }
 }

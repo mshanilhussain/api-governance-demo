@@ -7,3 +7,5 @@ apis:
     spec_id: 8314183e-6d41-4bcb-b9a9-878958deabeb
   warehouse-api:
     spec_id: c16b6cc6-ba98-4061-ac97-b19fb93939f4
+  payments-api:
+    spec_id: e69cc531-30ea-43d3-92e2-2dfad92dd2c9

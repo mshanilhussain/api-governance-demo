@@ -1,0 +1,54 @@
+
+openapi: 3.1.0
+
+info:
+  title: Payments API
+  version: 1.0.0
+  description: API for retrieving payment details.
+
+servers:
+  - url: https://api.example.com/v1
+
+security:
+  - bearerAuth: []
+
+paths:
+  /payments:
+    get:
+      summary: Retrieve payments
+      operationId: getPayments
+      security:
+        - bearerAuth: []
+      description: Retrieves a list of payments.
+      responses:
+        '200':
+          description: Payments retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required:
+                    - id
+                    - amount
+                    - status
+                  properties:
+                    id:
+                      type: integer
+                      example: 1001
+                    amount:
+                      type: number
+                      format: double
+                      example: 250.50
+                    status:
+                      type: string
+                      example: completed
+        '401':
+          description: Unauthorized - missing or invalid bearer token.
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
