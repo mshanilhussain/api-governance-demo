@@ -11,3 +11,5 @@ apis:
     spec_id: e69cc531-30ea-43d3-92e2-2dfad92dd2c9
   governance-demo-api:
     spec_id: 632384e9-3c39-4053-8503-2d7bf752b570
+  governance-creation-demo-api:
+    spec_id: df6b3b9f-7fd4-4842-b43a-09bad7db6c3e
