@@ -154,7 +154,9 @@ jobs:
           python-version: "3.x"
 
       - name: Install Postman CLI
-        run: npm install --global postman-cli
+        run: |
+          npm install --prefix "$RUNNER_TEMP/postman-cli" postman-cli
+          echo "$RUNNER_TEMP/postman-cli/node_modules/.bin" >> "$GITHUB_PATH"
 
       - name: Lint OpenAPI specification with Postman
         env:
