@@ -3,7 +3,7 @@ openapi: 3.1.0
 info:
   title: Inventory API
   version: 1.0.0
-  description: API for retrieving inventory item details. Managed tests through automated API governance. Sync verification. This endpoint supports inventory API. Combined-run verification for collection creation and specification updates. Final combined demo verification.
+  description: API for retrieving inventory item details. Managed tests through automated API governance. Sync verification. This endpoint supports inventory API. Combined-run verification for collection creation and specification updates. Final combined demo verification.New Demo Collection.
 
 servers:
   - url: https://api.example.com/v1
