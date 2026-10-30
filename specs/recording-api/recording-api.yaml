@@ -1,0 +1,29 @@
+openapi: 3.1.0
+
+info:
+  title: "Recording API"
+  version: 1.0.0
+  description: "Recording for Live Demo"
+
+servers:
+  - url: https://api.example.com/v1
+
+security:
+  - bearerAuth: []
+
+paths:
+ /status:
+  get:
+    operationId:getStatus
+    summary: Get service status
+    security:
+      --bearerAuth:[]
+    responses:
+      "200":
+        description: Service is available
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
