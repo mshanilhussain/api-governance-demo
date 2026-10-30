@@ -37,7 +37,7 @@
       "dependencies": [],
       "postman_spec_id": ""
     },
-   "payments-api": {
+    "payments-api": {
       "display_name": "Payments API",
       "domain": "Payment Processing",
       "owner": "Payments API Team",
@@ -48,8 +48,8 @@
       "approval_reference": "",
       "dependencies": [],
       "postman_spec_id": "e69cc531-30ea-43d3-92e2-2dfad92dd2c9"
-   },
-   "governance-demo-api": {
+    },
+    "governance-demo-api": {
       "display_name": "Governance Demo API",
       "domain": "API Governance",
       "owner": "API Governance Demo Team",
@@ -72,6 +72,18 @@
       "approval_reference": "",
       "dependencies": [],
       "postman_spec_id": "df6b3b9f-7fd4-4842-b43a-09bad7db6c3e"
+    },
+    "recording-api": {
+      "display_name": "Recording API",
+      "domain": "API Governance",
+      "owner": "API Governance Demo Team",
+      "specification": "specs/recording-api/recording-api.yaml",
+      "lifecycle": "Draft",
+      "approval_status": "Pending",
+      "approved_by": "",
+      "approval_reference": "",
+      "dependencies": [],
+      "postman_spec_id": ""
     }
   }
 }

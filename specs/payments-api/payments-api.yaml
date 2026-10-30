@@ -4,7 +4,7 @@ openapi: 3.1.0
 info:
   title: Payments API
   version: 1.0.0
-  description: API for retrieving payment details.
+  description: API for retrieving payment details. This is for the detect API Change Demo.
 
 servers:
   - url: https://api.example.com/v1
