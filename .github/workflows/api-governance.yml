@@ -173,12 +173,18 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/postman-cli" postman-cli
           echo "$RUNNER_TEMP/postman-cli/node_modules/.bin" >> "$GITHUB_PATH"
 
+      # Lint the spec file from this commit (not the copy already in
+      # Postman) against the workspace's governance rules (OWASP ruleset).
+      # Runs before any cloud update, so a failing spec never reaches Postman.
       - name: Lint OpenAPI specification with Postman
         env:
           POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
+        shell: bash
         run: |
           set -euo pipefail
-          postman spec lint "${{ matrix.spec_id }}"
+          postman login --with-api-key "$POSTMAN_API_KEY"
+          postman spec lint "${{ matrix.api_file }}" \
+            --workspace-id 8a87b18c-244c-44fb-abe1-c48362546372
 
       # Cloud modifications are restricted to pushes to main
       # and manual reconciliation runs on main.
