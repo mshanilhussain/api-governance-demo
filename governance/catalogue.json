@@ -78,6 +78,11 @@
       "domain": "API Governance",
       "owner": "API Governance Demo Team",
       "specification": "specs/recording-api/recording-api.yaml",
+    "rehearsal-demo-api": {
+      "display_name": "Rehearsal Demo API",
+      "domain": "API Governance",
+      "owner": "API Governance Demo Team",
+      "specification": "specs/rehearsal-demo-api/rehearsal-demo-api.yaml",
       "lifecycle": "Draft",
       "approval_status": "Pending",
       "approved_by": "",
