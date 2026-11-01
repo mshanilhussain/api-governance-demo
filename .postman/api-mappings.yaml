@@ -15,4 +15,6 @@ apis:
     spec_id: df6b3b9f-7fd4-4842-b43a-09bad7db6c3e
   rehearsal-demo-api:
     spec_id: def73675-e86e-4d3e-a400-525bd9e91a4d
+  management-live-demo-api:
+    spec_id: 68a58fd1-28fe-4f82-a5e2-0d13629bcc0c
   
