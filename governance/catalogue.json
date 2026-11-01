@@ -84,6 +84,18 @@
       "approval_reference": "",
       "dependencies": [],
       "postman_spec_id": ""
+    },
+    "management-live-demo-api": {
+      "display_name": "Management Live Demo API",
+      "domain": "Account Services",
+      "owner": "Digital Banking API Team",
+      "specification": "specs/management-live-demo-api/management-live-demo-api.yaml",
+      "lifecycle": "Draft",
+      "approval_status": "Pending",
+      "approved_by": "",
+      "approval_reference": "",
+      "dependencies": [],
+      "postman_spec_id": ""
     }
   }
 }
