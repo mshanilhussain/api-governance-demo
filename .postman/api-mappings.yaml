@@ -17,4 +17,6 @@ apis:
     spec_id: def73675-e86e-4d3e-a400-525bd9e91a4d
   management-live-demo-api:
     spec_id: 68a58fd1-28fe-4f82-a5e2-0d13629bcc0c
+  account-statement-api:
+    spec_id: 5f55c6bc-07f8-46c2-84de-ebf373270228
   

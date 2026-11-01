@@ -96,6 +96,18 @@
       "approval_reference": "",
       "dependencies": [],
       "postman_spec_id": ""
+    },
+    "account-statement-api": {
+      "display_name": "Account Statement API",
+      "domain": "Account Services",
+      "owner": "Digital Banking API Team",
+      "specification": "specs/account-statement-api/account-statement-api.yaml",
+      "lifecycle": "Draft",
+      "approval_status": "Pending",
+      "approved_by": "",
+      "approval_reference": "",
+      "dependencies": [],
+      "postman_spec_id": ""
     }
   }
 }
